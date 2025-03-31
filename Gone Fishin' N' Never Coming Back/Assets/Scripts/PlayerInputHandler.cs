@@ -39,7 +39,7 @@ public class PlayerInputHandler : MonoBehaviour
         // This will move the player with Character Controller
         Player.MoveWithCC(finalMovement);
 
-        // Jumping (if you want it)
+        
         if (Input.GetKeyDown(KeyCode.Space))
         {
             Player.Jump();

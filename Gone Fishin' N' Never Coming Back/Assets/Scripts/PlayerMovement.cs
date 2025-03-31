@@ -9,7 +9,7 @@ public class Player : MonoBehaviour
     private CharacterController characterController;
 
     [Header("Fishing Mechanic")]
-    public GameObject fishingRod; // Reference to the fishing rod or cast point
+    public GameObject fishingRod; 
 
     void Awake()
     {
@@ -55,6 +55,6 @@ public class Player : MonoBehaviour
     public void CastFishingRod()
     {
         Debug.Log("Casting Fishing Rod!");
-        // Here you can trigger fishing animation or spawning fish
+      
     }
 }
