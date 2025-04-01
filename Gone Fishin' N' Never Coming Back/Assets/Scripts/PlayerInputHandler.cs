@@ -39,10 +39,23 @@ public class PlayerInputHandler : MonoBehaviour
         // This will move the player with Character Controller
         Player.MoveWithCC(finalMovement);
 
-        
-        if (Input.GetKeyDown(KeyCode.Space))
+        // Casting the fishing rod (Press F)
+        if (Input.GetKeyDown(KeyCode.F))
         {
-            Player.Jump();
+            Player.CastFishingRod();
         }
+
+        /// Reeling in fish (Hold R)
+        if (Input.GetKey(KeyCode.R))
+        {
+            Player.ReelFish();
+        }
+
+        // Stop Reeling (Release R)
+        if (Input.GetKeyUp(KeyCode.R))
+        {
+            Player.StopReeling();
+        }
+
     }
 }
