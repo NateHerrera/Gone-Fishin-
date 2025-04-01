@@ -1,18 +1,23 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class FishSpawner : MonoBehaviour
 {
-    // Start is called before the first frame update
+    public GameObject fishPrefab;
+    public int initialFishCount = 5;
+    public float spawnRadius = 20f;
+
     void Start()
     {
-        
+        for (int i = 0; i < initialFishCount; i++)
+        {
+            SpawnFish();
+        }
     }
 
-    // Update is called once per frame
-    void Update()
+    void SpawnFish()
     {
-        
+        Vector3 spawnPosition = transform.position + Random.insideUnitSphere * spawnRadius;
+        spawnPosition.y = 0f; // Keep fish at water level
+        Instantiate(fishPrefab, spawnPosition, Quaternion.identity);
     }
 }

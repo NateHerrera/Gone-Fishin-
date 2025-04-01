@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Grass
   - Water
+  - Bait
   layers:
   - Default
   - TransparentFX

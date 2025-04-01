@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using System.Collections;
 
 public class Player : MonoBehaviour
 {
@@ -9,25 +10,36 @@ public class Player : MonoBehaviour
     private CharacterController characterController;
 
     [Header("Fishing Mechanic")]
-    private bool isFishing = false;
-    private bool fishOnHook = false;
+    public bool isFishing = false;
+    public bool fishOnHook = false;
+    public GameObject baitPrefab; // Reference to the bait prefab
+    private GameObject currentBait; // Stores the instantiated bait
+    private WaterDetector WaterDetector;
+    private bool isReeling = false;
+
     // Adjust the fishing reel timings
     public float reelingTimer = 0f;
     public float maxReelingTimer = 3f;
-    public float maxAllowableReelingTimer = 10f; // Maximum time allowed to reel in a fish
-    private WaterDetector WaterDetector;
-    private bool isReeling = false;
+    public float maxAllowableReelingTimer = 10f;
+
+    public float caughtFishDisplayTime = 3f; // Time to display caught fish message
+    public float caughtFishTimer = 0f;
+    private bool waitingForBite = false;
 
     [Header("UI")]
     public TextMeshProUGUI reelingCountdownText;
     public TextMeshProUGUI allowableCountdownText;
+    public TextMeshProUGUI caughtFishText;
     private Vector3 gravityVelocity = Vector3.zero;
 
     void Awake()
     {
         characterController = GetComponent<CharacterController>();
-        // grab the water collision check to fish on the water
         WaterDetector = GetComponent<WaterDetector>();
+        if (caughtFishText != null)
+        {
+            caughtFishText.gameObject.SetActive(false);
+        }
     }
 
     void Update()
@@ -40,9 +52,21 @@ public class Player : MonoBehaviour
         }
         else
         {
-            reelingCountdownText.gameObject.SetActive(false); // Hide countdown UI when not actively reeling
-            allowableCountdownText.gameObject.SetActive(false); // Hide countdown UI when not actively reeling        
+            reelingCountdownText.gameObject.SetActive(false); 
+            allowableCountdownText.gameObject.SetActive(false); 
         }
+
+        // Hide the caught fish text after a set duration
+        if (caughtFishText.gameObject.activeSelf)
+        {
+            caughtFishTimer += Time.deltaTime;
+            if (caughtFishTimer >= caughtFishDisplayTime)
+            {
+                caughtFishText.gameObject.SetActive(false);
+                caughtFishTimer = 0f; // Reset the timer
+            }
+        }
+
     }
 
     public void MoveWithCC(Vector3 direction)
@@ -56,7 +80,6 @@ public class Player : MonoBehaviour
 
     void ApplyGravity()
     {
-
         gravityVelocity.y += gravity * Time.deltaTime;
         characterController.Move(gravityVelocity * Time.deltaTime);
     }
@@ -68,73 +91,96 @@ public class Player : MonoBehaviour
             Debug.Log("Casting Fishing Rod...");
             isFishing = true;
 
-            float catchChance = Random.Range(0f, 1f);
+            if (currentBait != null)
+                Destroy(currentBait);
 
-            if (catchChance > 0.3f) // 70% chance of hooking a fish
-            {
-                Debug.Log("Fish On! Press 'R' to reel in.");
-                fishOnHook = true;
-                reelingTimer = 0f;
-                isReeling = false;  // Reset reeling state
-            }
-            else
-            {
-                Debug.Log("Nothing took the bait. Try again.");
-                isFishing = false;
-            }
+            Vector3 castPosition = transform.position + transform.forward * 5f;
+            castPosition.y = 0.1f; 
+
+            currentBait = Instantiate(baitPrefab, castPosition, Quaternion.identity);
+            currentBait.tag = "Bait";
+
+            StartCoroutine(CheckBiteAfterDelay(2f));
         }
-        else if (!WaterDetector.CanFish())
+        else if (WaterDetector == null || !WaterDetector.CanFish())
         {
             Debug.Log("You must be near water to fish.");
         }
-      
     }
+
+    private IEnumerator CheckBiteAfterDelay(float delay)
+    {
+        waitingForBite = true;
+        yield return new WaitForSeconds(delay);
+
+        float catchChance = Random.Range(0f, 1f);
+
+        if (catchChance > 0.3f)
+        {
+            Debug.Log("Fish On! Press 'R' to reel in.");
+            fishOnHook = true;
+            reelingTimer = 0f;
+            isReeling = false;  
+        }
+        else
+        {
+            Debug.Log("Nothing took the bait. Reel it back in and try again.");
+            fishOnHook = false;
+        }
+
+        waitingForBite = false;
+    }
+
 
     public void ReelFish()
     {
         if (isFishing && fishOnHook)
         {
-            Debug.Log("Reeling...");
             isReeling = true; 
             reelingTimer += Time.deltaTime;
 
-            // Only checking if the player exceeds the maximum allowable time WHILE reeling
             if (reelingTimer > maxAllowableReelingTimer) 
             {
-                Debug.Log("You reeled for too long!");
+                Debug.Log("You reeled for too long! The fish got away.");
                 LoseFish();
             }
         }
     }
 
-
     public void StopReeling() 
     {
-        if (isFishing && fishOnHook)
+        if (isFishing && !waitingForBite)
         {
-            if (reelingTimer >= maxReelingTimer && reelingTimer <= maxAllowableReelingTimer)
+            if (fishOnHook)
             {
-                CatchFish();
+                if (reelingTimer >= maxReelingTimer && reelingTimer <= maxAllowableReelingTimer)
+                {
+                    CatchFish();
+                }
+                else if (reelingTimer < maxReelingTimer) 
+                {
+                    Debug.Log("You released R too early. The fish got away.");
+                    LoseFish();
+                }
             }
-            else if (reelingTimer < maxReelingTimer) 
+            else
             {
-                Debug.Log("You lost the fish! You released R too early.");
-                LoseFish();
+                Debug.Log("You reeled in the line. Nothing was caught.");
+                ResetFishingState();
             }
         }
         isReeling = false; 
     }
 
-
     private void CatchFish()
     {
         Debug.Log("You caught a fish!");
+        DetermineCatch();
         ResetFishingState();
     }
 
     private void LoseFish()
     {
-        Debug.Log("The fish got away...");
         ResetFishingState();
     }
 
@@ -144,6 +190,15 @@ public class Player : MonoBehaviour
         fishOnHook = false;
         reelingTimer = 0f;
         isReeling = false;
+
+        if (currentBait != null)
+            Destroy(currentBait);
+
+        if (reelingCountdownText != null && allowableCountdownText != null)
+        {
+            reelingCountdownText.gameObject.SetActive(false);
+            allowableCountdownText.gameObject.SetActive(false);
+        }
     }
 
     private void UpdateCountdownUI()
@@ -153,14 +208,41 @@ public class Player : MonoBehaviour
             reelingCountdownText.gameObject.SetActive(true);
             allowableCountdownText.gameObject.SetActive(true);
 
-            // Display how much time is left to catch the fish (0 to 3 seconds)
             float releaseTimeLeft = Mathf.Clamp(maxReelingTimer - reelingTimer, 0, maxReelingTimer);
             reelingCountdownText.text = $"Reel Until Ready: {releaseTimeLeft:F1} seconds";
 
-            // Display how much time is left before reeling too long (0 to 10 seconds)
             float allowableTimeLeft = Mathf.Clamp(maxAllowableReelingTimer - reelingTimer, 0, maxAllowableReelingTimer);
             allowableCountdownText.text = $"Max Reel Time Left: {allowableTimeLeft:F1} seconds";
         }
     }
 
+    private void DetermineCatch()
+    {
+        int catchResult = Random.Range(0, 100);
+
+        string caughtItem;
+
+        if (catchResult < 34)
+        {
+            caughtItem = "You caught a Bass!";
+        }
+        else if (catchResult < 67)
+        {
+            caughtItem = "You caught a Trout!";
+        }
+        else
+        {
+            caughtItem = "You caught a Boot!";
+        }
+
+        Debug.Log(caughtItem);
+
+        if (caughtFishText != null)
+        {
+            caughtFishText.text = caughtItem;
+            caughtFishText.gameObject.SetActive(true);
+
+            caughtFishTimer = 0f; // Reset the timer
+        }
+    }
 }
