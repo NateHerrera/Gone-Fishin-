@@ -4,6 +4,7 @@ public class PlayerInputHandler : MonoBehaviour
 {
     public Player Player;
     public Transform cameraTransform;
+    public RodAnimator rodAnimator;
 
     void Update()
     {
@@ -43,6 +44,7 @@ public class PlayerInputHandler : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F))
         {
             Player.CastFishingRod();
+            rodAnimator.TriggerCast();
         }
 
         /// Reeling in fish (Hold R)
@@ -55,7 +57,9 @@ public class PlayerInputHandler : MonoBehaviour
         if (Input.GetKeyUp(KeyCode.R))
         {
             Player.StopReeling();
+            rodAnimator.TriggerReel();
         }
 
     }
+
 }

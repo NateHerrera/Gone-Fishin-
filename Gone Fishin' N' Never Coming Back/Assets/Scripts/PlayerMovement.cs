@@ -2,6 +2,7 @@ using TMPro;
 using UnityEngine;
 using System.Collections;
 
+[RequireComponent(typeof(LineRenderer))]
 public class Player : MonoBehaviour
 {
     [Header("Movement")]
@@ -12,19 +13,21 @@ public class Player : MonoBehaviour
     [Header("Fishing Mechanic")]
     public bool isFishing = false;
     public bool fishOnHook = false;
-    public GameObject baitPrefab; // Reference to the bait prefab
-    private GameObject currentBait; // Stores the instantiated bait
+    public GameObject baitPrefab;
+    private GameObject currentBait;
     private WaterDetector WaterDetector;
     private bool isReeling = false;
 
-    // Adjust the fishing reel timings
     public float reelingTimer = 0f;
     public float maxReelingTimer = 3f;
     public float maxAllowableReelingTimer = 10f;
-
-    public float caughtFishDisplayTime = 3f; // Time to display caught fish message
+    public float caughtFishDisplayTime = 3f;
     public float caughtFishTimer = 0f;
     private bool waitingForBite = false;
+
+    [Header("Fishing Visuals")]
+    public Transform rodTip;
+    public LineRenderer fishingLine;
 
     [Header("UI")]
     public TextMeshProUGUI reelingCountdownText;
@@ -36,6 +39,14 @@ public class Player : MonoBehaviour
     {
         characterController = GetComponent<CharacterController>();
         WaterDetector = GetComponent<WaterDetector>();
+        fishingLine = GetComponent<LineRenderer>();
+
+        if (fishingLine != null)
+        {
+            fishingLine.positionCount = 2;
+            fishingLine.enabled = false;
+        }
+
         if (caughtFishText != null)
         {
             caughtFishText.gameObject.SetActive(false);
@@ -52,21 +63,30 @@ public class Player : MonoBehaviour
         }
         else
         {
-            reelingCountdownText.gameObject.SetActive(false); 
-            allowableCountdownText.gameObject.SetActive(false); 
+            reelingCountdownText.gameObject.SetActive(false);
+            allowableCountdownText.gameObject.SetActive(false);
         }
 
-        // Hide the caught fish text after a set duration
+        if (fishingLine != null && isFishing && currentBait != null)
+        {
+            fishingLine.enabled = true;
+            fishingLine.SetPosition(0, rodTip.position);
+            fishingLine.SetPosition(1, currentBait.transform.position);
+        }
+        else if (fishingLine != null)
+        {
+            fishingLine.enabled = false;
+        }
+
         if (caughtFishText.gameObject.activeSelf)
         {
             caughtFishTimer += Time.deltaTime;
             if (caughtFishTimer >= caughtFishDisplayTime)
             {
                 caughtFishText.gameObject.SetActive(false);
-                caughtFishTimer = 0f; // Reset the timer
+                caughtFishTimer = 0f;
             }
         }
-
     }
 
     public void MoveWithCC(Vector3 direction)
@@ -86,7 +106,7 @@ public class Player : MonoBehaviour
 
     public void CastFishingRod()
     {
-        if (!isFishing && WaterDetector != null && WaterDetector.CanFish()) 
+        if (!isFishing && WaterDetector != null && WaterDetector.CanFish())
         {
             Debug.Log("Casting Fishing Rod...");
             isFishing = true;
@@ -95,7 +115,7 @@ public class Player : MonoBehaviour
                 Destroy(currentBait);
 
             Vector3 castPosition = transform.position + transform.forward * 5f;
-            castPosition.y = 0.1f; 
+            castPosition.y = 0.1f;
 
             currentBait = Instantiate(baitPrefab, castPosition, Quaternion.identity);
             currentBait.tag = "Bait";
@@ -120,7 +140,7 @@ public class Player : MonoBehaviour
             Debug.Log("Fish On! Press 'R' to reel in.");
             fishOnHook = true;
             reelingTimer = 0f;
-            isReeling = false;  
+            isReeling = false;
         }
         else
         {
@@ -131,15 +151,14 @@ public class Player : MonoBehaviour
         waitingForBite = false;
     }
 
-
     public void ReelFish()
     {
         if (isFishing && fishOnHook)
         {
-            isReeling = true; 
+            isReeling = true;
             reelingTimer += Time.deltaTime;
 
-            if (reelingTimer > maxAllowableReelingTimer) 
+            if (reelingTimer > maxAllowableReelingTimer)
             {
                 Debug.Log("You reeled for too long! The fish got away.");
                 LoseFish();
@@ -147,7 +166,7 @@ public class Player : MonoBehaviour
         }
     }
 
-    public void StopReeling() 
+    public void StopReeling()
     {
         if (isFishing && !waitingForBite)
         {
@@ -157,7 +176,7 @@ public class Player : MonoBehaviour
                 {
                     CatchFish();
                 }
-                else if (reelingTimer < maxReelingTimer) 
+                else if (reelingTimer < maxReelingTimer)
                 {
                     Debug.Log("You released R too early. The fish got away.");
                     LoseFish();
@@ -169,7 +188,7 @@ public class Player : MonoBehaviour
                 ResetFishingState();
             }
         }
-        isReeling = false; 
+        isReeling = false;
     }
 
     private void CatchFish()
@@ -241,8 +260,7 @@ public class Player : MonoBehaviour
         {
             caughtFishText.text = caughtItem;
             caughtFishText.gameObject.SetActive(true);
-
-            caughtFishTimer = 0f; // Reset the timer
+            caughtFishTimer = 0f;
         }
     }
 }
