@@ -28,6 +28,10 @@ public class Player : MonoBehaviour
     [Header("Fishing Visuals")]
     public Transform rodTip;
     public LineRenderer fishingLine;
+    public float castDistance = 20f;
+    public float arcHeight = 300f;
+    public GameObject targetCirclePrefab;
+    private GameObject currentTargetCircle;
 
     [Header("UI")]
     public TextMeshProUGUI reelingCountdownText;
@@ -44,7 +48,12 @@ public class Player : MonoBehaviour
         if (fishingLine != null)
         {
             fishingLine.positionCount = 2;
-            fishingLine.enabled = false;
+            fishingLine.startWidth = 0.02f;
+            fishingLine.endWidth = 0.02f;
+            fishingLine.material = new Material(Shader.Find("Sprites/Default"));
+            fishingLine.startColor = Color.white;
+            fishingLine.endColor = Color.white;
+            fishingLine.enabled = true;
         }
 
         if (caughtFishText != null)
@@ -57,25 +66,10 @@ public class Player : MonoBehaviour
     {
         ApplyGravity();
 
-        
-    // 🔍 Debug logs to track positions
-    if (currentBait != null)
-    {
-        Debug.Log("🐟 Bait position: " + currentBait.transform.position);
-    }
-    else
-    {
-        Debug.Log("⛔ No bait currently instantiated.");
-    }
-
-    if (rodTip != null)
-    {
-        Debug.Log("🎣 Rod tip position: " + rodTip.position);
-    }
-    else
-    {
-        Debug.Log("⚠️ Rod tip reference is missing!");
-    }
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            CastFishingRod();
+        }
 
         if (fishOnHook && isReeling)
         {
@@ -87,15 +81,11 @@ public class Player : MonoBehaviour
             allowableCountdownText.gameObject.SetActive(false);
         }
 
-        if (fishingLine != null && isFishing && currentBait != null)
+        if (fishingLine != null && currentBait != null)
         {
             fishingLine.enabled = true;
             fishingLine.SetPosition(0, rodTip.position);
             fishingLine.SetPosition(1, currentBait.transform.position);
-        }
-        else if (fishingLine != null)
-        {
-            fishingLine.enabled = false;
         }
 
         if (caughtFishText.gameObject.activeSelf)
@@ -128,24 +118,53 @@ public class Player : MonoBehaviour
     {
         if (!isFishing && WaterDetector != null && WaterDetector.CanFish())
         {
-            Debug.Log("Casting Fishing Rod...");
             isFishing = true;
 
-            if (currentBait != null)
-                Destroy(currentBait);
+            Vector3 start = rodTip.position;
+            Vector3 direction = transform.forward;
+            Vector3 target = start + direction * castDistance;
+            target.y = 0.1f;
 
-            Vector3 castPosition = transform.position + transform.forward * 5f;
-            castPosition.y = 0.1f;
+            if (currentTargetCircle == null && targetCirclePrefab != null)
+            {
+                currentTargetCircle = Instantiate(targetCirclePrefab, target, Quaternion.identity);
+            }
+            else if (currentTargetCircle != null)
+            {
+                currentTargetCircle.transform.position = target;
+            }
 
-            currentBait = Instantiate(baitPrefab, castPosition, Quaternion.identity);
+            if (currentBait != null) Destroy(currentBait);
+
+            currentBait = Instantiate(baitPrefab, start, Quaternion.identity);
             currentBait.tag = "Bait";
 
+            StartCoroutine(MoveBaitWithArc(currentBait.transform, start, target, 1.2f, arcHeight));
             StartCoroutine(CheckBiteAfterDelay(2f));
         }
-        else if (WaterDetector == null || !WaterDetector.CanFish())
+    }
+
+    private IEnumerator MoveBaitWithArc(Transform bait, Vector3 start, Vector3 end, float duration, float height)
+    {
+        float time = 0f;
+        while (time < 1f)
         {
-            Debug.Log("You must be near water to fish.");
+            // Linear interpolation
+            Vector3 linearPos = Vector3.Lerp(start, end, time);
+
+            // Add arc (parabola)
+            float arc = Mathf.Sin(time * Mathf.PI) * height;
+            linearPos.y += arc;
+
+            bait.position = linearPos;
+            fishingLine.SetPosition(1, bait.position);
+
+            time += Time.deltaTime / duration;
+            yield return null;
         }
+
+        bait.position = end;
+        fishingLine.SetPosition(1, bait.position);
     }
 
     private IEnumerator CheckBiteAfterDelay(float delay)
@@ -231,13 +250,34 @@ public class Player : MonoBehaviour
         isReeling = false;
 
         if (currentBait != null)
-            Destroy(currentBait);
+        {
+            StartCoroutine(ReelBaitBack(currentBait.transform));
+        }
 
         if (reelingCountdownText != null && allowableCountdownText != null)
         {
             reelingCountdownText.gameObject.SetActive(false);
             allowableCountdownText.gameObject.SetActive(false);
         }
+    }
+
+    private IEnumerator ReelBaitBack(Transform bait)
+    {
+        Vector3 start = bait.position;
+        Vector3 end = rodTip.position;
+        float duration = 0.5f;
+        float time = 0f;
+
+        while (time < duration)
+        {
+            bait.position = Vector3.Lerp(start, end, time / duration);
+            fishingLine.SetPosition(1, bait.position);
+            time += Time.deltaTime;
+            yield return null;
+        }
+
+        fishingLine.SetPosition(1, end);
+        Destroy(bait.gameObject);
     }
 
     private void UpdateCountdownUI()
