@@ -57,6 +57,26 @@ public class Player : MonoBehaviour
     {
         ApplyGravity();
 
+        
+    // 🔍 Debug logs to track positions
+    if (currentBait != null)
+    {
+        Debug.Log("🐟 Bait position: " + currentBait.transform.position);
+    }
+    else
+    {
+        Debug.Log("⛔ No bait currently instantiated.");
+    }
+
+    if (rodTip != null)
+    {
+        Debug.Log("🎣 Rod tip position: " + rodTip.position);
+    }
+    else
+    {
+        Debug.Log("⚠️ Rod tip reference is missing!");
+    }
+
         if (fishOnHook && isReeling)
         {
             UpdateCountdownUI();
