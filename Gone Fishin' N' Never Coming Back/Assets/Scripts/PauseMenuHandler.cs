@@ -12,9 +12,23 @@ public class PauseMenuHandler : MonoBehaviour
     public TMP_Dropdown resolutionDropdown;
     public Slider volumeSlider;
     public AudioMixer audioMixer;
+    public Toggle fullscreenToggle;
 
     private bool isPaused = false;
     private Resolution[] resolutions;
+
+    void Awake()
+    {
+        int resIndex = PlayerPrefs.GetInt("ResolutionIndex", 0);
+        bool isFullscreen = PlayerPrefs.GetInt("Fullscreen", 1) == 1;
+
+        Resolution[] allRes = Screen.resolutions;
+        if (resIndex >= 0 && resIndex < allRes.Length)
+        {
+            Resolution res = allRes[resIndex];
+            Screen.SetResolution(res.width, res.height, isFullscreen);
+        }
+    }
 
     void Start()
     {
@@ -45,6 +59,11 @@ public class PauseMenuHandler : MonoBehaviour
         resolutionDropdown.AddOptions(options);
         resolutionDropdown.value = currentResolutionIndex;
         resolutionDropdown.RefreshShownValue();
+
+        fullscreenToggle.isOn = Screen.fullScreen;
+        fullscreenToggle.onValueChanged.AddListener(SetFullscreen);
+
+        Load();
     }
 
     void Update()
@@ -67,8 +86,7 @@ public class PauseMenuHandler : MonoBehaviour
         pauseMenuCanvas.SetActive(true);
         Time.timeScale = 0f;
         isPaused = true;
-        Cursor.visible = true;
-        Cursor.lockState = CursorLockMode.None;
+
     }
 
     public void ResumeGame()
@@ -76,8 +94,7 @@ public class PauseMenuHandler : MonoBehaviour
         pauseMenuCanvas.SetActive(false);
         Time.timeScale = 1f;
         isPaused = false;
-        Cursor.visible = false;
-        Cursor.lockState = CursorLockMode.Locked;
+
     }
 
     public void QuitGame()
@@ -94,12 +111,57 @@ public class PauseMenuHandler : MonoBehaviour
 
     public void SetVolume(float volume)
     {
+        AudioListener.volume = volumeSlider.value;
         audioMixer.SetFloat("MasterVolume", Mathf.Log10(volume) * 20);
     }
 
     public void SetResolution(int resolutionIndex)
     {
-        Resolution res = resolutions[resolutionIndex];
-        Screen.SetResolution(res.width, res.height, Screen.fullScreen);
+        // Store selected index, actual resolution applied only on Apply
+        PlayerPrefs.SetInt("ResolutionIndex", resolutionIndex);
     }
-} 
+
+    public void SetFullscreen(bool isFullscreen)
+    {
+        // Store setting, apply later
+        PlayerPrefs.SetInt("Fullscreen", isFullscreen ? 1 : 0);
+    }
+
+    public void ApplyGraphicsSettings()
+    {
+        int resolutionIndex = resolutionDropdown.value;
+        bool isFullscreen = fullscreenToggle.isOn;
+
+        Resolution res = resolutions[resolutionIndex];
+        Screen.SetResolution(res.width, res.height, isFullscreen);
+
+        Save(); // Save preferences after applying
+    }
+
+    public void Save()
+    {
+        PlayerPrefs.SetFloat("Volume", volumeSlider.value);
+        PlayerPrefs.SetInt("ResolutionIndex", resolutionDropdown.value);
+        PlayerPrefs.SetInt("Fullscreen", fullscreenToggle.isOn ? 1 : 0);
+        PlayerPrefs.Save();
+    }
+
+    public void Load()
+    {
+        if (PlayerPrefs.HasKey("Volume"))
+        {
+            volumeSlider.value = PlayerPrefs.GetFloat("Volume");
+            SetVolume(volumeSlider.value);
+        }
+
+        if (PlayerPrefs.HasKey("ResolutionIndex"))
+        {
+            resolutionDropdown.value = PlayerPrefs.GetInt("ResolutionIndex");
+        }
+
+        if (PlayerPrefs.HasKey("Fullscreen"))
+        {
+            fullscreenToggle.isOn = PlayerPrefs.GetInt("Fullscreen") == 1;
+        }
+    }
+}

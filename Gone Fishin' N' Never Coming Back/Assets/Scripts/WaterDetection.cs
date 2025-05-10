@@ -10,6 +10,8 @@ public class WaterDetector : MonoBehaviour
         {
             isNearWater = true;
             Debug.Log("Player is near water. Ready to fish!");
+            FindFirstObjectByType<JournalHandler>().CompleteAchievement("Find The Pool!");
+
         }
     }
 

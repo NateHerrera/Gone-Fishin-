@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 [RequireComponent(typeof(LineRenderer))]
 public class Player : MonoBehaviour
@@ -8,9 +9,9 @@ public class Player : MonoBehaviour
     [Header("Movement")]
     public float speed = 5f;
     public float gravity = -9.8f;
-    private CharacterController characterController;
+    public CharacterController characterController;
 
-    [Header("Fishing Mechanic")]
+    [Header("Fishing Mechanic")] 
     public bool isFishing = false;
     public bool fishOnHook = false;
     public GameObject baitPrefab;
@@ -32,12 +33,23 @@ public class Player : MonoBehaviour
     public float arcHeight = 300f;
     public GameObject targetCirclePrefab;
     private GameObject currentTargetCircle;
+    public TextMeshProUGUI fishingStatusText;
+    public float statusDisplayTime = 2f;
+    private float statusTimer = 0f;
 
     [Header("UI")]
     public TextMeshProUGUI reelingCountdownText;
     public TextMeshProUGUI allowableCountdownText;
     public TextMeshProUGUI caughtFishText;
     private Vector3 gravityVelocity = Vector3.zero;
+
+    [Header("Animations")]
+    public AnimationStateChanger animationStateChanger;
+    public string idleAnimationState = "Idle";
+    public string walkAnimationState = "Walk";
+
+    private int totalFishCaught = 0;
+    private HashSet<string> uniqueFishCaught = new HashSet<string>();
 
     void Awake()
     {
@@ -60,6 +72,11 @@ public class Player : MonoBehaviour
         {
             caughtFishText.gameObject.SetActive(false);
         }
+    }
+
+    void Start()
+    {
+        ChangePlayerAnimationState(idleAnimationState);
     }
 
     void Update()
@@ -95,6 +112,16 @@ public class Player : MonoBehaviour
             {
                 caughtFishText.gameObject.SetActive(false);
                 caughtFishTimer = 0f;
+            }
+        }
+
+        if (fishingStatusText != null && fishingStatusText.gameObject.activeSelf)
+        {
+            statusTimer += Time.deltaTime;
+            if (statusTimer >= statusDisplayTime)
+            {
+                fishingStatusText.gameObject.SetActive(false);
+                statusTimer = 0f;
             }
         }
     }
@@ -177,6 +204,7 @@ public class Player : MonoBehaviour
         if (catchChance > 0.3f)
         {
             Debug.Log("Fish On! Press 'R' to reel in.");
+            ShowFishingStatus("Fish On!");
             fishOnHook = true;
             reelingTimer = 0f;
             isReeling = false;
@@ -184,6 +212,7 @@ public class Player : MonoBehaviour
         else
         {
             Debug.Log("Nothing took the bait. Reel it back in and try again.");
+            ShowFishingStatus("Nothing took the bait.");
             fishOnHook = false;
         }
 
@@ -303,24 +332,60 @@ public class Player : MonoBehaviour
 
         if (catchResult < 34)
         {
-            caughtItem = "You caught a Bass!";
+            caughtItem = "Bass";
         }
         else if (catchResult < 67)
         {
-            caughtItem = "You caught a Trout!";
+            caughtItem = "Trout";
         }
         else
         {
-            caughtItem = "You caught a Boot!";
+            caughtItem = "Boot";
         }
 
-        Debug.Log(caughtItem);
+        Debug.Log("You caught a " + caughtItem + "!");
 
         if (caughtFishText != null)
         {
-            caughtFishText.text = caughtItem;
+            caughtFishText.text = "You caught a " + caughtItem + "!";
             caughtFishText.gameObject.SetActive(true);
             caughtFishTimer = 0f;
         }
+
+        FindFirstObjectByType<ChecklistHandler>().MarkItemCaught(caughtItem);
+        FindFirstObjectByType<JournalHandler>().CompleteAchievement("Caught a " + caughtItem);
+
+
+        totalFishCaught++;
+        uniqueFishCaught.Add(caughtItem);
+
+        if (totalFishCaught == 5)
+        {
+            FindFirstObjectByType<JournalHandler>().CompleteAchievement("Fished 5 times");
+        }
+
+        if (uniqueFishCaught.Contains("Bass") && uniqueFishCaught.Contains("Trout") && uniqueFishCaught.Contains("Boot"))
+        {
+            FindFirstObjectByType<JournalHandler>().CompleteAchievement("Caught All Fish Types");
+        }
     }
+
+    private void ShowFishingStatus(string message)
+    {
+        if (fishingStatusText != null)
+        {
+            fishingStatusText.text = message;
+            fishingStatusText.gameObject.SetActive(true);
+            statusTimer = 0f;
+        }
+    }
+
+    public void ChangePlayerAnimationState(string newAnimationState)
+    {
+        if (animationStateChanger != null)
+        {
+            animationStateChanger.ChangeAnimationState(newAnimationState);
+        }
+    }
+
 }

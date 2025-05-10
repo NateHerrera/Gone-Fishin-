@@ -5,6 +5,8 @@ public class PlayerInputHandler : MonoBehaviour
     public Player Player;
     public Transform cameraTransform;
     public RodAnimator rodAnimator;
+    public GameObject checklistPanel; // Reference to the checklist panel
+    public PlayerMovement playerMovement;
 
     void Update()
     {
@@ -37,8 +39,17 @@ public class PlayerInputHandler : MonoBehaviour
 
         finalMovement.Normalize();
 
-        // This will move the player with Character Controller
+         // Apply movement and switch animation state
         Player.MoveWithCC(finalMovement);
+
+        if (finalMovement != Vector3.zero)
+        {
+            Player.ChangePlayerAnimationState(Player.walkAnimationState);
+        }
+        else
+        {
+            Player.ChangePlayerAnimationState(Player.idleAnimationState);
+        }
 
         // Casting the fishing rod (Press F)
         if (Input.GetKeyDown(KeyCode.F))
@@ -59,6 +70,7 @@ public class PlayerInputHandler : MonoBehaviour
             Player.StopReeling();
             rodAnimator.TriggerReel();
         }
+
 
     }
 
